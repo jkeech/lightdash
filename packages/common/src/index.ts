@@ -202,7 +202,7 @@ export type CompiledTableCalculation = TableCalculation & {
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
     metrics: FieldId[]; // Metrics to compute in the explore
-    filters: FilterGroup[]; // Filters applied to the table to query (logical AND)
+    filters: any; // Filters applied to the table to query (logical AND)
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results

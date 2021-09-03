@@ -15,6 +15,7 @@ import {
     NumberFilter,
     StringFilter,
 } from 'common';
+import { FilterBuilder } from './queryFilterBuilder';
 
 const renderStringFilterSql = (
     dimensionSql: string,
@@ -261,13 +262,17 @@ export const buildQuery = ({
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
-    const whereFilters = filters.map((filter) =>
-        renderFilterGroupSql(filter, explore),
-    );
-    const sqlWhere =
-        whereFilters.length > 0
-            ? `WHERE ${whereFilters.map((w) => `(\n  ${w}\n)`).join(' AND ')}`
-            : '';
+    // const whereFilters = filters.map((filter) =>
+    //     renderFilterGroupSql(filter, explore),
+    // );
+    // const sqlWhere =
+    //     whereFilters.length > 0
+    //         ? `WHERE ${whereFilters.map((w) => `(\n  ${w}\n)`).join(' AND ')}`
+    //         : '';
+    const sqlWhere = new FilterBuilder(
+        filters as any,
+        explore,
+    ).generateWhereClause();
 
     const sqlLimit = `LIMIT ${limit}`;
 
