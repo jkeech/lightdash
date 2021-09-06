@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
+import { GroupFilter, LogicalOperator } from 'common';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
 
@@ -27,8 +28,11 @@ export const useExplorerRoute = () => {
                     ? []
                     : JSON.parse(sortSearchParam);
                 const filterSearchParam = searchParams.get('filters');
-                const filters = !filterSearchParam
-                    ? []
+                const filters: GroupFilter = !filterSearchParam
+                    ? {
+                          children: [],
+                          groupOperator: LogicalOperator.AND,
+                      }
                     : JSON.parse(filterSearchParam);
                 const limitSearchParam = searchParams.get('limit');
                 const limit =
@@ -85,7 +89,7 @@ export const useExplorerRoute = () => {
             } else {
                 newParams.set('sort', JSON.stringify(state.sorts));
             }
-            if (state.filters.length === 0) {
+            if (state.filters.children.length === 0) {
                 newParams.delete('filters');
             } else {
                 newParams.set('filters', JSON.stringify(state.filters));

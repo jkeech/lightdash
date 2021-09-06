@@ -1,12 +1,18 @@
 import React, {
-    FC,
-    useContext,
     createContext,
-    useReducer,
-    useMemo,
+    FC,
     useCallback,
+    useContext,
+    useMemo,
+    useReducer,
 } from 'react';
-import { FieldId, FilterGroup, SortField, TableCalculation } from 'common';
+import {
+    FieldId,
+    GroupFilter,
+    LogicalOperator,
+    SortField,
+    TableCalculation,
+} from 'common';
 
 export enum ActionType {
     RESET,
@@ -45,7 +51,7 @@ type Action =
       }
     | {
           type: ActionType.SET_FILTERS;
-          payload: FilterGroup[];
+          payload: GroupFilter;
       }
     | {
           type: ActionType.ADD_TABLE_CALCULATION;
@@ -69,7 +75,7 @@ interface ExplorerReduceState {
     selectedTableCalculations: FieldId[];
     dimensions: FieldId[];
     metrics: FieldId[];
-    filters: FilterGroup[];
+    filters: GroupFilter;
     sorts: SortField[];
     columnOrder: string[];
     limit: number;
@@ -91,7 +97,7 @@ interface ExplorerContext {
         toggleSortField: (fieldId: FieldId) => void;
         setSortFields: (sortFields: SortField[]) => void;
         setRowLimit: (limit: number) => void;
-        setFilters: (filters: FilterGroup[]) => void;
+        setFilters: (filters: GroupFilter) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -119,7 +125,10 @@ const defaultState: ExplorerReduceState = {
     tableName: undefined,
     dimensions: [],
     metrics: [],
-    filters: [],
+    filters: {
+        children: [],
+        groupOperator: LogicalOperator.AND,
+    },
     sorts: [],
     columnOrder: [],
     limit: 500,
@@ -392,7 +401,7 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
-    const setFilters = useCallback((filters: FilterGroup[]) => {
+    const setFilters = useCallback((filters: GroupFilter) => {
         dispatch({
             type: ActionType.SET_FILTERS,
             payload: filters,

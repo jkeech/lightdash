@@ -191,7 +191,7 @@ export const getSavedQueryByUuid = async (
         metricQuery: {
             dimensions,
             metrics,
-            filters: savedQuery.filters,
+            filters: savedQuery.filters, // TODO: migrate
             sorts: sorts.map<SortField>((sort) => ({
                 fieldId: sort.field_name,
                 descending: sort.descending,

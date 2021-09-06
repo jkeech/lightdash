@@ -198,11 +198,106 @@ export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
 };
 
+export enum RelationalOperator {
+    EQUAL = 'equals',
+    NOT_EQUALS = 'notEquals',
+    STARTS_WITH = 'startsWith',
+    NULL = 'isNull',
+    NOT_NULL = 'notNull',
+    LESS_THAN = 'lessThan',
+    LESS_THAN_OR_EQUAL = 'lessThanOrEqual',
+    GREATER_THAN = 'greaterThan',
+    GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
+}
+
+export enum LogicalOperator {
+    AND = 'AND',
+    OR = 'OR',
+}
+
+export interface GroupFilter {
+    id?: string;
+    children: Array<GroupFilter | Filter>;
+    groupOperator: LogicalOperator;
+}
+
+export interface FilterBase<
+    T extends DimensionType,
+    O extends RelationalOperator,
+    V = any,
+> {
+    id?: string;
+    type: T;
+    tableName: string;
+    fieldName: string;
+    operator: O;
+    values: V[];
+}
+
+export type StringFilter = FilterBase<
+    DimensionType.STRING,
+    | RelationalOperator.EQUAL
+    | RelationalOperator.NOT_EQUALS
+    | RelationalOperator.STARTS_WITH
+    | RelationalOperator.NULL
+    | RelationalOperator.NOT_NULL,
+    string
+>;
+
+export type NumberFilter = FilterBase<
+    DimensionType.NUMBER,
+    | RelationalOperator.EQUAL
+    | RelationalOperator.NOT_EQUALS
+    | RelationalOperator.GREATER_THAN
+    | RelationalOperator.LESS_THAN
+    | RelationalOperator.NULL
+    | RelationalOperator.NOT_NULL,
+    number
+>;
+
+export type DateAndTimestampFilter = FilterBase<
+    DimensionType.DATE | DimensionType.TIMESTAMP,
+    | RelationalOperator.EQUAL
+    | RelationalOperator.NOT_EQUALS
+    | RelationalOperator.GREATER_THAN
+    | RelationalOperator.GREATER_THAN_OR_EQUAL
+    | RelationalOperator.LESS_THAN
+    | RelationalOperator.LESS_THAN_OR_EQUAL
+    | RelationalOperator.NULL
+    | RelationalOperator.NOT_NULL,
+    Date
+>;
+
+export type BooleanFilter = FilterBase<
+    DimensionType.BOOLEAN,
+    | RelationalOperator.EQUAL
+    | RelationalOperator.NOT_EQUALS
+    | RelationalOperator.NULL
+    | RelationalOperator.NOT_NULL,
+    boolean
+>;
+
+export type Filter =
+    | StringFilter
+    | NumberFilter
+    | DateAndTimestampFilter
+    | BooleanFilter;
+
+export const isGroupFilter = (
+    value: GroupFilter | Filter,
+): value is GroupFilter =>
+    Object.prototype.hasOwnProperty.call(value, 'children');
+
+export const isFilter = (value: GroupFilter | Filter): value is Filter =>
+    Object.prototype.hasOwnProperty.call(value, 'tableName') &&
+    Object.prototype.hasOwnProperty.call(value, 'fieldName') &&
+    Object.prototype.hasOwnProperty.call(value, 'operator');
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
     metrics: FieldId[]; // Metrics to compute in the explore
-    filters: any; // Filters applied to the table to query (logical AND)
+    filters: GroupFilter; // Filters applied to the table to query (logical AND)
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results
@@ -217,80 +312,6 @@ export type SortField = {
     fieldId: string; // Field must exist in the explore
     descending: boolean; // Direction of the sort
 };
-
-export enum FilterGroupOperator {
-    and = 'and',
-    or = 'or',
-}
-
-// Filter groups combine multiple filters for a single dimension or metric
-// The filters in a filter group can be combined with AND/OR
-// Filters vary depending on the dimension type
-export type StringFilterGroup = {
-    type: 'string';
-    tableName: string;
-    fieldName: string;
-    operator: FilterGroupOperator;
-    filters: StringFilter[];
-};
-
-export type StringFilter =
-    | { operator: 'equals'; values: string[]; id?: string }
-    | { operator: 'notEquals'; values: string[]; id?: string }
-    | { operator: 'startsWith'; value: string; id?: string }
-    | { operator: 'isNull'; id?: string }
-    | { operator: 'notNull'; id?: string };
-
-export type NumberFilterGroup = {
-    type: 'number';
-    tableName: string;
-    fieldName: string;
-    operator: FilterGroupOperator;
-    filters: NumberFilter[];
-};
-
-export type NumberFilter =
-    | { operator: 'equals'; values: number[]; id?: string }
-    | { operator: 'notEquals'; values: number[]; id?: string }
-    | { operator: 'greaterThan'; value: number; id?: string }
-    | { operator: 'lessThan'; value: number; id?: string }
-    | { operator: 'isNull'; id?: string }
-    | { operator: 'notNull'; id?: string };
-
-export type DateFilterGroup = {
-    type: 'date';
-    tableName: string;
-    fieldName: string;
-    operator: FilterGroupOperator;
-    filters: DateAndTimestampFilter[];
-};
-
-export type TimestampFilterGroup = {
-    type: 'timestamp';
-    tableName: string;
-    fieldName: string;
-    operator: FilterGroupOperator;
-    filters: DateAndTimestampFilter[];
-};
-
-export type DateAndTimestampFilter =
-    | { operator: 'equals'; value: Date; id?: string }
-    | { operator: 'notEquals'; value: Date; id?: string }
-    | { operator: 'greaterThan'; value: Date; id?: string }
-    | { operator: 'greaterThanOrEqual'; value: Date; id?: string }
-    | { operator: 'lessThan'; value: Date; id?: string }
-    | { operator: 'lessThanOrEqual'; value: Date; id?: string }
-    | { operator: 'isNull'; id?: string }
-    | { operator: 'notNull'; id?: string };
-
-export type FilterGroup =
-    | StringFilterGroup
-    | NumberFilterGroup
-    | TimestampFilterGroup
-    | DateFilterGroup;
-
-export const fieldIdFromFilterGroup = (fg: FilterGroup) =>
-    `${fg.tableName}_${fg.fieldName}`;
 
 export interface FilterableDimension extends Dimension {
     type:

@@ -5,87 +5,18 @@ import {
     formatDate,
     formatTimestamp,
     getDimensions,
+    GroupFilter,
+    Filter,
+    isGroupFilter,
+    StringFilter,
+    NumberFilter,
+    DateAndTimestampFilter,
+    RelationalOperator,
 } from 'common';
 
-export enum RelationalOperator {
-    EQUAL = 'equals',
-    NOT_EQUALS = 'notEquals',
-    STARTS_WITH = 'startsWith',
-    NULL = 'isNull',
-    NOT_NULL = 'notNull',
-    LESS_THAN = 'lessThan',
-    LESS_THAN_OR_EQUAL = 'lessThanOrEqual',
-    GREATER_THAN = 'greaterThan',
-    GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
-}
+const TabSpace = '  ';
 
-export enum LogicalOperator {
-    AND = 'AND',
-    OR = 'OR',
-}
-
-export interface GroupFilter {
-    children: Array<GroupFilter | Filter>;
-    groupOperator: LogicalOperator;
-}
-
-export interface FilterBase<T = any> {
-    tableName: string;
-    fieldName: string;
-    operator: RelationalOperator;
-    values?: T[];
-}
-
-export interface FilterWithValues<T, O extends RelationalOperator>
-    extends FilterBase<T> {
-    operator: O;
-    values: T[];
-}
-
-export interface FilterWithNoValues<O extends RelationalOperator>
-    extends FilterBase {
-    operator: O;
-}
-
-export type StringFilter =
-    | FilterWithValues<
-          string,
-          | RelationalOperator.EQUAL
-          | RelationalOperator.NOT_EQUALS
-          | RelationalOperator.STARTS_WITH
-      >
-    | FilterWithNoValues<RelationalOperator.NULL | RelationalOperator.NOT_NULL>;
-
-export type NumberFilter =
-    | FilterWithValues<
-          number,
-          | RelationalOperator.EQUAL
-          | RelationalOperator.NOT_EQUALS
-          | RelationalOperator.GREATER_THAN
-          | RelationalOperator.LESS_THAN
-      >
-    | FilterWithNoValues<RelationalOperator.NULL | RelationalOperator.NOT_NULL>;
-
-export type DateAndTimestampFilter =
-    | FilterWithValues<
-          Date,
-          | RelationalOperator.EQUAL
-          | RelationalOperator.NOT_EQUALS
-          | RelationalOperator.GREATER_THAN
-          | RelationalOperator.GREATER_THAN_OR_EQUAL
-          | RelationalOperator.LESS_THAN
-          | RelationalOperator.LESS_THAN_OR_EQUAL
-      >
-    | FilterWithNoValues<RelationalOperator.NULL | RelationalOperator.NOT_NULL>;
-
-type Filter = StringFilter | NumberFilter | DateAndTimestampFilter;
-
-export const isGroupFilter = (
-    value: GroupFilter | Filter,
-): value is GroupFilter =>
-    Object.prototype.hasOwnProperty.call(value, 'children');
-
-export const fieldIdFromFilter = (filter: Filter) =>
+const fieldIdFromFilter = (filter: Filter) =>
     `${filter.tableName}_${filter.fieldName}`;
 
 export class FilterBuilder {
@@ -104,19 +35,20 @@ export class FilterBuilder {
             : '';
     }
 
-    private generateGroupFilter(groupFilter: GroupFilter): string {
-        const filters = groupFilter.children.reduce(
-            (acc, value, index) =>
-                isGroupFilter(value)
-                    ? `${acc} ${this.generateGroupFilter(value)} ${
-                          index === groupFilter.children.length
-                              ? ` ${groupFilter.groupOperator} `
-                              : ''
-                      }`
-                    : `${acc} ${this.generateFilterSql(value)}`,
-            '',
-        );
-        return `(${filters})`;
+    private generateGroupFilter(
+        groupFilter: GroupFilter,
+        depth: number = 1,
+    ): string {
+        const groupTab = Array(depth).join(TabSpace);
+        const contentTab = Array(depth + 1).join(TabSpace);
+        const groupFilterLines = groupFilter.children.map((value, index) => {
+            const operator = index > 0 ? `${groupFilter.groupOperator} ` : '';
+            const line = isGroupFilter(value)
+                ? this.generateGroupFilter(value, depth + 1)
+                : this.generateFilterSql(value);
+            return `${contentTab}${operator}${line}`;
+        }, '');
+        return `(\n${groupFilterLines.join('\n')}\n${groupTab})`;
     }
 
     private generateFilterSql(filter: Filter): string {
@@ -125,39 +57,40 @@ export class FilterBuilder {
             (d) => fieldId(d) === filterFieldId,
         );
         if (!dimension) {
-            // TODO
-            throw new Error(`Error ...`);
+            throw new Error(
+                `Filter references dimension ${filterFieldId} but it wasn't found`,
+            );
         }
-        switch (dimension.type) {
+        switch (filter.type) {
             case DimensionType.STRING:
                 return FilterBuilder.renderStringFilterSql(
                     dimension.compiledSql,
-                    filter as StringFilter,
+                    filter,
                 );
             case DimensionType.NUMBER:
                 return FilterBuilder.renderNumberFilterSql(
                     dimension.compiledSql,
-                    filter as NumberFilter,
+                    filter,
                 );
             case DimensionType.DATE:
                 return FilterBuilder.renderDateFilterSql(
                     dimension.compiledSql,
-                    filter as DateAndTimestampFilter,
+                    filter,
                 );
             case DimensionType.TIMESTAMP:
                 return FilterBuilder.renderDateFilterSql(
                     dimension.compiledSql,
-                    filter as DateAndTimestampFilter,
+                    filter,
                     formatTimestamp,
                 );
             case DimensionType.BOOLEAN:
-                // TODO
+                // TODO: handle boolean dimensions
                 return '';
             default:
-                const nope: never = dimension.type;
-                // TODO
+                const { type } = filter;
+                const nope: never = filter;
                 throw Error(
-                    `No function implemented to render sql for filter group type ...`,
+                    `No function implemented to render sql for filter group type ${type}`,
                 );
         }
     }
@@ -187,7 +120,7 @@ export class FilterBuilder {
                 return `(${targetSql}) LIKE '${filter.values[0]}%'`;
             default:
                 const { operator } = filter;
-                const nope: never = filter;
+                const nope: never = filter.operator;
                 throw Error(
                     `No function implemented to render sql for filter type ${operator} on dimension of number type`,
                 );
@@ -217,7 +150,7 @@ export class FilterBuilder {
                 return `(${targetSql}) < ${filter.values[0]}`;
             default:
                 const { operator } = filter;
-                const nope: never = filter;
+                const nope: never = filter.operator;
                 throw Error(
                     `No function implemented to render sql for filter type ${operator} on dimension of string type`,
                 );
@@ -260,7 +193,7 @@ export class FilterBuilder {
                 )}')`;
             default:
                 const { operator } = filter;
-                const nope: never = filter;
+                const nope: never = filter.operator;
                 throw Error(
                     `No function implemented to render sql for filter type ${operator} on dimension of string type`,
                 );

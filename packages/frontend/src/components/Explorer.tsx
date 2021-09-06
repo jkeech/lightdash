@@ -15,7 +15,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import { useLocation } from 'react-router-dom';
-import { FiltersForm } from '../filters/FiltersForm';
+import { FiltersForm } from './FiltersForm/FiltersForm';
 import { ResultsTable } from './ResultsTable';
 import { SimpleChart } from './SimpleChart';
 import { RenderedSql } from './RenderedSql';
@@ -66,9 +66,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [vizIsOpen, setVizisOpen] = useState<boolean>(
         !!savedQueryUuid && !location.state?.fromExplorer,
     );
-    const totalActiveFilters = filters
-        .flatMap((filterGroup) => filterGroup.filters.length)
-        .reduce((p, t) => p + t, 0);
+    const totalActiveFilters = filters.children.length;
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );

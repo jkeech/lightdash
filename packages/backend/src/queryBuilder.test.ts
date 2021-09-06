@@ -16,7 +16,7 @@ test('Should build simple metric query', () => {
     ).toStrictEqual(METRIC_QUERY_SQL);
 });
 
-test('Should build metric query with filters', () => {
+test('Should build metric query with FiltersForm', () => {
     expect(
         buildQuery({
             explore: EXPLORE,
